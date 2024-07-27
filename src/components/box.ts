@@ -22,6 +22,7 @@ export type BoxConfig = {
   };
   isImage?: boolean;
   scrollable?: boolean;
+  hidden?: boolean;
 };
 
 export default function box(config: BoxConfig) {
@@ -78,20 +79,15 @@ export default function box(config: BoxConfig) {
   }
 
   let drewOutline = false;
+  let drewTitle = false;
 
   return {
     async draw() {
+      if (config.hidden) return;
       await mutex.runExclusive(async () => {
         if (config.outline && !drewOutline) {
           await cursorTo(config.left, config.top);
           console.write(style.outline(`┌${"─".repeat(width - 2)}┐`));
-          if (config.title) {
-            const padding = Math.floor(
-              (width - stringLength(config.title)) / 2 - 2,
-            );
-            await cursorTo(config.left + padding, config.top);
-            console.write(` ${config.title} `);
-          }
           for (let y = config.top + 1; y <= config.bottom - 1; y++) {
             await cursorTo(config.left, y);
             console.write(style.outline("│"));
@@ -101,6 +97,14 @@ export default function box(config: BoxConfig) {
           await cursorTo(config.left, config.bottom);
           console.write(style.outline(`└${"─".repeat(width - 2)}┘`));
           drewOutline = true;
+        }
+        if (config.title && !drewTitle) {
+          const padding = Math.floor(
+            (width - stringLength(config.title)) / 2 - 2,
+          );
+          await cursorTo(config.left + padding, config.top);
+          console.write(` ${config.title} `);
+          drewTitle = true;
         }
         let redraw = false;
         if (prevContent !== config.content) {

@@ -6,12 +6,14 @@ import menubar from "./src/components/menubar";
 import chalk from "chalk";
 import terminalImage from "terminal-image";
 import got from "got";
-import { cursorTo } from "./src/util";
 
 moment.tz.setDefault("UTC");
 
 let screenRight = process.stdout.columns - 1;
 let screenBottom = process.stdout.rows - 1;
+
+let showForecast = true;
+let showOutlook = true;
 
 console.log("Loading SPC Outlooks...");
 
@@ -55,12 +57,6 @@ const outlookMenuItems = latestOutlooks
   }))
   .filter((outlook) => outlook.name !== "");
 
-console.clear();
-console.write("\u001B[?25l"); // hides cursor
-for (let i = 0; i < process.stdout.rows; i++) {
-  console.log(" ".repeat(process.stdout.columns));
-}
-
 let dayMenubar: any;
 let forecastTextarea: any;
 let outlookBox: any;
@@ -87,6 +83,15 @@ async function updateOutlook() {
 }
 
 async function init() {
+  console.clear();
+  console.write("\u001B[?25l"); // hides cursor
+  for (let i = 0; i < process.stdout.rows; i++) {
+    console.log(" ".repeat(process.stdout.columns));
+  }
+
+  screenRight = process.stdout.columns - 1;
+  screenBottom = process.stdout.rows - 1;
+
   dayMenubar = menubar({
     top: 0,
     left: 0,
@@ -106,8 +111,8 @@ async function init() {
     top: 1,
     left: 0,
     bottom: screenBottom - 1,
-    right: 75,
-    title: chalk.bold.blue(`${chalk.red("f")}orecast discussion`),
+    right: showOutlook ? 75 : screenRight,
+    title: chalk.bold.blue(`${chalk.red("f")}orecast`),
     outline: true,
     showScrollBar: true,
     style: {
@@ -118,13 +123,14 @@ async function init() {
       },
     },
     scrollable: true,
+    hidden: !showForecast,
   });
   updateOutlook();
   await forecastTextarea.draw();
 
   outlookBox = box({
     top: 1,
-    left: 76,
+    left: showForecast ? 76 : 0,
     bottom: screenBottom - 1,
     right: screenRight,
     title: chalk.bold.green(`${chalk.red("o")}utlook`),
@@ -133,6 +139,7 @@ async function init() {
     style: {
       outline: chalk.green,
     },
+    hidden: !showOutlook,
   });
   await outlookBox.draw();
 
@@ -140,59 +147,27 @@ async function init() {
     top: screenBottom,
     left: 0,
     right: screenRight,
-    items: [`${chalk.red("q")}uit`],
+    items: [
+      `${chalk.red("q")}uit`,
+      ...(!showForecast ? [`${chalk.red("f")}orecast`] : []),
+      ...(!showOutlook ? [`${chalk.red("o")}utlook`] : []),
+    ],
     style: {
       bg: chalk.gray("─"),
     },
+    spacing: 2,
   });
   await mainMenuBar.draw();
 }
 
 init();
 
-let outlookIndex = 0;
-
-// function renderMenuBar() {
-//   const menuBar = outlookMenuItems
-//     .map(({ name }, i) => {
-//       if (i === outlookIndex) {
-//         return chalk.bgWhite(chalk.black(name));
-//       }
-//       return name;
-//     })
-//     .join(" ");
-//   const menuBarPadding = Math.floor(
-//     (process.stdout.columns - stringLength(menuBar)) / 2,
-//   );
-//   process.stdout.cursorTo(menuBarPadding, 0);
-//   console.write(menuBar);
-// }
-// renderMenuBar();
-
-// let outlookTextareaScrollTop = 0;
-// function renderOutlookTextarea() {
-//   for (const [i, line] of outlook.text
-//     .split("\n")
-//     .slice(outlookTextareaScrollTop)
-//     .entries()) {
-//     if (i < process.stdout.rows - 4) {
-//       process.stdout.cursorTo(1, 3 + i);
-//       console.write(" ".repeat(process.stdout.columns - 3));
-//       process.stdout.cursorTo(1, 3 + i);
-//       console.write(line.slice(0, process.stdout.columns - 3));
-//     } else {
-//       break;
-//     }
-//   }
-// }
-// renderOutlookTextarea();
-
 readline.emitKeypressEvents(process.stdin);
 if (process.stdin.isTTY) {
   process.stdin.setRawMode(true);
 }
 
-process.stdin.on("keypress", async (chunk, key) => {
+process.stdin.on("keypress", async (_chunk, key) => {
   if (!key) return;
   const { ctrl, name } = key;
   if (ctrl) {
@@ -222,13 +197,14 @@ process.stdin.on("keypress", async (chunk, key) => {
       dayMenubar.setSelectedIndex(parseInt(name) - 1);
       updateOutlook();
       await dayMenubar.draw();
+    } else if (name === "f") {
+      showForecast = !showForecast;
+      await init();
+    } else if (name === "o") {
+      showOutlook = !showOutlook;
+      await init();
     }
   }
 });
 
-process.on("SIGWINCH", () => {
-  console.clear();
-  screenRight = process.stdout.columns - 1;
-  screenBottom = process.stdout.rows - 1;
-  init();
-});
+process.on("SIGWINCH", async () => await init());
