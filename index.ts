@@ -117,6 +117,7 @@ async function init() {
         fg: chalk.bgGray(" "),
       },
     },
+    scrollable: true,
   });
   updateOutlook();
   await forecastTextarea.draw();

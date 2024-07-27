@@ -21,6 +21,7 @@ export type BoxConfig = {
     };
   };
   isImage?: boolean;
+  scrollable?: boolean;
 };
 
 export default function box(config: BoxConfig) {
@@ -31,7 +32,9 @@ export default function box(config: BoxConfig) {
     if (i < 0) return " ".repeat(contentWidth);
     // const line = (lines.at(i) ?? "").slice(0, contentWidth);
     const line = lines.at(i) ?? "";
-    // return `${line}${" ".repeat(Math.max(0, contentWidth - stringLength(line)))}`;
+    if (config.scrollable) {
+      return `${line}${" ".repeat(Math.max(0, contentWidth - stringLength(line)))}`;
+    }
     return line;
   }
 
